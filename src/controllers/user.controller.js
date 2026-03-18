@@ -182,8 +182,9 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     const options = {
       httpOnly: true,
       secure: true,
-    }
-   const {accessToken , NewrefreshToken} = await generateAccessAndRefreshToken(user._id);
+    };
+    const { accessToken, NewrefreshToken } =
+      await generateAccessAndRefreshToken(user._id);
     return res
       .status(200)
       .cookie("accessToken", accessToken, options)
@@ -191,29 +192,112 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
       .json(
         new ApiResponse(
           200,
-          { accessToken, refreshToken: NewrefreshToken },  
+          { accessToken, refreshToken: NewrefreshToken },
           "Access token refreshed successfully"
         )
       );
   } catch (error) {
-    throw new ApiError(401,  error?.message,"invalid refresh token");
+    throw new ApiError(401, error?.message, "invalid refresh token");
   }
 });
 
-const changeCurrentPassword = asyncHandler(async(req,res)=>{
-  const {currentPassword, newPassword} = req.body;
-   const user = await User.findById(req.user._id)
-   const isPasswordCorrect = await user.isPasswordCorrect(currentPassword)
-   if(!isPasswordCorrect){
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const user = await User.findById(req.user._id);
+  const isPasswordCorrect = await user.isPasswordCorrect(currentPassword);
+  if (!isPasswordCorrect) {
     throw new ApiError(401, "current password is incorrect");
-   }
-    user.password = newPassword;
-    await user.save({
-      validateBeforeSave: false,
-    });
-    return res.status(200).json(new ApiResponse(200, {}, "password changed successfully"))
-  })
+  }
+  user.password = newPassword;
+  await user.save({
+    validateBeforeSave: false,
+  });
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "password changed successfully"));
+});
 
-  
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "current user fetched successfully"));
+});
 
-export { registerUser, loginUser, logoutUser ,refreshAccessToken, changeCurrentPassword};
+const updateAccountDetails = asyncHandler(async (req, res) => {
+  const { fullName, email } = req.body;
+  if (!fullName || !email) {
+    throw new ApiError(400, "fullName and email is required");
+  }
+
+  const user = User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        fullName,
+        email,
+      },
+    },
+    { new: true }
+  ).select("-password");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "account details updated successfully"));
+});
+
+const updateUserAvatar = asyncHandler(async (req, res) => {
+  const avatarLocalPath = req.file?.path;
+  if (!avatarLocalPath) {
+    throw new ApiError(400, "avatar image is required");
+  }
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  if (!avatar.url) {
+    throw new ApiError(400, "something went wrong while uploading avatar");
+  }
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        avatar: avatar.url,
+      },
+    },
+    { new: true }
+  ).select("-password");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "avatar updated successfully"));
+});
+
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const CoverImageLocalPath = req.file?.path;
+  if (!CoverImageLocalPath) {
+    throw new ApiError(400, "coverImage image is required");
+  }
+  const coverImage = await uploadOnCloudinary(CoverImageLocalPath);
+  if (!coverImage.url) {
+    throw new ApiError(400, "something went wrong while uploading coverImage");
+  }
+  const user = await User.findByIdAndUpdate(
+    req.user?._id,
+    {
+      $set: {
+        coverImage: coverImage.url,
+      },
+    },
+    { new: true }
+  ).select("-password");
+  return res
+    .status(200)
+    .json(new ApiResponse(200, user, "coverImage updated successfully"));
+});
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateAccountDetails,
+  updateUserAvatar,
+  updateUserCoverImage,
+};
